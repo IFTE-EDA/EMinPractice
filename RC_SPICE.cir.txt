@@ -1,0 +1,108 @@
+.title RC equivalent circuit for two-segment line
+
+* Kappa=1.35e-16, Beta=7.69E+02, Vcrit=40e6
+* L1= 2.5um, L2=2.5um
+* h=100nm, w=50nm
+* i1=150uA, i2=75uA
+
+
+
+
+.param R1=2.32e23 C1=7.81e-22 C05=3.91e-22
+
+R101 stress101 stress102 {R1}
+R102 stress102 stress103 {R1}
+R103 stress103 stress104 {R1}
+R104 stress104 stress105 {R1}
+R105 stress105 stress106 {R1}
+R106 stress106 stress107 {R1}
+R107 stress107 stress108 {R1}
+R108 stress108 stress109 {R1}
+R109 stress109 stress110 {R1}
+R110 stress110 stress111 {R1}
+R111 stress111 stress112 {R1}
+R112 stress112 stress113 {R1}
+R113 stress113 stress114 {R1}
+R114 stress114 stress115 {R1}
+R115 stress115 stress116 {R1}
+R116 stress116 stress201 {R1}
+
+R201 stress201 stress202 {R1}
+R202 stress202 stress203 {R1}
+R203 stress203 stress204 {R1}
+R204 stress204 stress205 {R1}
+R205 stress205 stress206 {R1}
+R206 stress206 stress207 {R1}
+R207 stress207 stress208 {R1}
+R208 stress208 stress209 {R1}
+R209 stress209 stress210 {R1}
+R210 stress210 stress211 {R1}
+R211 stress211 stress212 {R1}
+R212 stress212 stress213 {R1}
+R213 stress213 stress214 {R1}
+R214 stress214 stress215 {R1}
+R215 stress215 stress216 {R1}
+R216 stress216 stress217 {R1}
+
+C101 stress101 0 {C05}
+C102 stress102 0 {C1}
+C103 stress103 0 {C1}
+C104 stress104 0 {C1}
+C105 stress105 0 {C1}
+C106 stress106 0 {C1}
+C107 stress107 0 {C1}
+C108 stress108 0 {C1}
+C109 stress109 0 {C1}
+C110 stress110 0 {C1}
+C111 stress111 0 {C1}
+C112 stress112 0 {C1}
+C113 stress113 0 {C1}
+C114 stress114 0 {C1}
+C115 stress115 0 {C1}
+C116 stress116 0 {C1}
+C201 stress201 0 {C1}
+C202 stress202 0 {C1}
+C203 stress203 0 {C1}
+C204 stress204 0 {C1}
+C205 stress205 0 {C1}
+C206 stress206 0 {C1}
+C207 stress207 0 {C1}
+C208 stress208 0 {C1}
+C209 stress209 0 {C1}
+C210 stress210 0 {C1}
+C211 stress211 0 {C1}
+C212 stress212 0 {C1}
+C213 stress213 0 {C1}
+C214 stress214 0 {C1}
+C215 stress215 0 {C1}
+C216 stress216 0 {C1}
+C217 stress217 0 {C05}
+
+*Uncomment to add reservoir:
+*C002 stress101 0 {C05}
+*R000 stress101 stress100 {R1}
+*C001 stress100 0 {C05}
+
+.ic V(stress101)=0 
+
+*Remove I201 and double the current of I217 to simulatate reference case of j=const
+I101 0 stress101 dc 0 PULSE (0 1.55E-17 0 0 0 10e7 20e7)
+I201 stress201 0 dc 0 PULSE (0 7.77e-18 0 0 0 10e7 20e7)
+I217 stress217 0 dc 0 PULSE (0 7.77e-18 0 0 0 10e7 20e7)
+
+
+
+.control
+tran 1e3 1e5
+plot stress101
+plot stress201
+plot stress217
+wrdata stress101.txt v(stress101)
+wrdata stress201.txt v(stress201)
+wrdata stress217.txt v(stress217)
+.endc
+
+.MEASURE TRAN MTTF WHEN stress101=4e7
+
+.end
+

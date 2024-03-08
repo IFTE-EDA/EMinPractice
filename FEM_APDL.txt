@@ -1,0 +1,259 @@
+
+t_end=100e3
+t_ste=500
+
+!SET CURRENT AND LENGTH HERE
+current = 1e-3
+length = 1e-6
+
+
+
+eff_r = 2.5		! influence of small feature sizes on resistivity
+k_Cu = 399.0		! thermal conductivities
+Z = 1			! effective charge number
+Qt = 0			! heat of transport, eV (Qt=0 for no TM consideration)
+
+
+*DEL,time_array
+*DIM,time_array,ARRAY,5
+time_array(1) = 1, 5, 10, 20, t_end 
+/PREP7
+ET,1,SOLID226,100111,,,,,1,1    ! structural-electric-thermal diffusion
+
+SELTOL,1e-12
+
+toff=273                ! TEMPERATURE OFFSET FROM ABSOLUTE ZERO, deg C
+TOFFST,toff
+
+
+MP,DXX,1,1.3e-9		! DIFFUSIVITY, m^2/s
+MP,BETX,1,1             ! coef. of diffusion expansion for back stress
+MP,CREF,1,1
+MP,REFT,1,100		! Refrence Temperature
+MP,EX,1,129.8e9         ! Young's modulus B, Pa
+MP,PRXY,1,0           ! Poisson's ratio (1D case)
+MP,RSVX,1,eff_r*2.27E-08      ! RESISTIVITY rho, Ohm-m -> Cu @ 100°C (for constant resistivity without temperature dependency)
+
+MP,KXX,1,k_Cu		! Thermal Conductivity Cu
+MP,C,1,382		! Specific heat (capacity?) J/kg*K
+
+Z_EM=*Z			! Z 
+Ze=-Z_EM*1.6e-19        ! effective charge, C  -> Z*e
+kB=1.3806e-23           ! Boltzmann constant, m^2*kg/(s^2*degK)
+Va=1.18e-29             ! atomic volume, m^3 
+k_eV=8.61733e-5		! Boltzmann's constant, eV/K
+
+Ea=0.7			! Activation Energy, eV		
+
+! Migration Atoms
+TB,MIGR,1
+TBDATA,1,Ea/k_eV	
+TBDATA,2,Va/kB
+tbdata,3,Qt/k_eV
+TBDATA,4,Ze/kB
+
+
+
+! 3D - Block
+w_metal = 50e-9
+l=length
+h= 100e-9
+
+
+BLOCK,0,l/2,0,w_metal,0,h
+BLOCK,l/2,l,0,w_metal,0,h
+
+! Uncomment to add reservoir
+!BLOCK,(l-w_metal)/2,(l+w_metal)/2,w_metal,l/2+w_metal,0,h
+
+! MESH 
+VSEL,ALL 
+VADD,ALL
+
+VSEL,ALL 
+ESIZE,w_metal
+VSEL,ALL
+MSHKEY,0
+MSHAPE,1,3D
+VMESH,ALL
+
+
+/VIEW,1,1,1,1
+/VUP,1,Z
+/ANGLE,1,180,ZM,0
+EPLOT
+/IMAGE,SAVE,'mesh_TM',png
+ALLSEL
+
+! Ground
+NSEL,S,LOC,X,0,0
+D,ALL,VOLT,0
+F,NDNEXT(0),AMPS,current
+
+ALLSEL,ALL
+! Current
+NSEL,S,LOC,X,l
+CP,NEXT,VOLT,ALL
+F,NDNEXT(0),AMPS,-current/2
+
+! Remove this current and double current at x=l to simulate reference case with j=const
+ALLSEL,ALL
+NSEL,S,LOC,X,l/2
+CP,NEXT,VOLT,ALL
+F,NDNEXT(0),AMPS,-current/2
+
+
+ALLSEL,ALL
+! Temperatur
+t=100                  ! TEMPERATURE, °C
+ALLSEL,ALL
+NSEL,S,LOC,X,0,0
+D,ALL,TEMP,t		! constant temperature at via
+NSEL,S,LOC,X,l
+D,ALL,TEMP,100
+
+ALLSEL,ALL
+ASEL,ALL,EXT 
+ASEL,U,LOC,X,0
+ASEL,U,LOC,X,l
+SFA,ALL,,CONV,1e20,100 		! use for TM deactivation
+
+
+
+! Displacement
+ALLSEL
+D,ALL,UX,0
+D,ALL,UY,0
+D,ALL,UZ,0
+FINISH
+
+/SOLU
+ANTYPE,TRANS
+ALLSEL,ALL
+IC,ALL,CONC,1
+NSEL,ALL
+
+NLGEOM,ON
+OUTRES,ALL,ALL
+AUTOTS,OFF
+
+KEYW,pr_sgui,1  ! Disables Solution is done
+TIME,t_end
+NSUBST,t_ste
+SOLVE
+FINISH
+
+!Number format
+/GFORMAT,F,12,2
+! White Background
+/RGB,INDEX,100,100,100, 0
+/RGB,INDEX, 80, 80, 80,13
+/RGB,INDEX, 60, 60, 60,14
+/RGB,INDEX, 0, 0, 0,15
+!export all parameters to file.param
+PARSAV,ALL,file,parm
+!To smooth contour, make sure to start ansys in win32c
+/CONTOUR,ALL,128
+!Should display location number, but remove element border
+/PNUM,LOC,1
+! min max in plot
+/PLOPTS,MINM,0
+! x,y,z axis
+/TRIAD,RBOT
+
+FINISH
+
+! Output of results
+
+/POST1
+
+*CFOPEN,'Stress_Data_%current%_%length%',txt,,APPEND
+*CFCLOS
+found_MTTF = 0
+StressMax = 4e7
+*DO, ti, 1, t_end, 1e2
+    SET,, , , , ti, , , 
+    PLNSOL,NL,HPRES
+    *GET,ParMax,PLNSOL,0,MAX 		
+    *GET,ParMin,PLNSOL,0,MIN
+    *IF,ti,EQ,1,THEN
+        *CFOPEN,'Stress_Data_%current%_%length%',txt
+        *VWRITE,ti,ParMax,ParMin
+        %15.1F %15.2F %15.2F
+        *CFCLOS
+    *ELSE
+        *CFOPEN,'Stress_Data_%current%_%length%',txt,,APPEND
+        *VWRITE,ti,ParMax,ParMin
+        %15.1F %15.2F %15.2F
+        *CFCLOS
+    *ENDIF
+    *IF,found_MTTF,EQ,0,AND,ParMax,GT,StressMax,THEN
+        *CFOPEN,'MTTF_Data',txt,,APPEND
+        *VWRITE,current,length,ti,ParMax
+        %15.10F %15.10F %15.1F %15.2F
+        *CFCLOS
+        found_MTTF = 1
+    *ENDIF
+    *IF,found_MTTF,EQ,0,AND,ParMin,GT,StressMax,THEN
+        *CFOPEN,'MTTF_Data',txt,,APPEND
+        *VWRITE,current,length,ti,ParMin
+        %15.10F %15.10F %15.1F %15.2F
+        *CFCLOS
+        found_MTTF = 1
+    *ENDIF
+    /NOERASE
+*ENDDO
+
+*IF,found_MTTF,EQ,0,THEN
+	*CFOPEN,'MTTF_Data',txt,,APPEND
+        *VWRITE,current,length,1000*t_end,ParMax
+	%15.10F %15.10F %15.1F %15.2F
+	*CFCLOS
+*ENDIF
+/ERASE
+
+
+/AXLAB,X,x (m)
+/AXLAB,Y, Hydrostatic stress (Pa)
+PATH,x_axis,2,,100
+PPATH,1,,0,0,0
+PPATH,2,,l,0,0
+/XRANGE,0,l
+/YRANGE,-400e6,400e6
+/GROPT,DIVY,4
+
+*DO, ti, 1, 5, 1
+    SET,,,,,time_array(ti)
+    color=ti*2+2
+    /COLOR,CURVE,color
+    PDEF,time_array(ti),NL,HPRES ,AVG
+    PLPATH,time_array(ti)
+
+    PAGET,datash,TABLE
+    ! x, y, z, s, sh -> s...length, sh...stress_hydro
+    *MWRITE,datash,'sh_x_axis_%job(1)%_t%ti%_%time_array(ti)%_x_y_z_s_sh',txt
+    %15.10F %15.10F %15.10F %15.10F %15.2F
+
+    PDEF,time_array(ti),TEMP
+    PLPATH,time_array(ti)
+
+    PAGET,datatemp,TABLE
+    ! x, y, z, s, sh -> s...length, sh...stress_hydro
+    *MWRITE,datatemp,'temp_x_axis_%job(1)%_t%ti%_%time_array(ti)%_x_y_z_s_sh',txt
+    %15.10F %15.10F %15.10F %15.10F %15.2F
+
+    PDEF,time_array(ti),VOLT
+    PLPATH,time_array(ti)
+
+    PAGET,datav,TABLE
+    ! x, y, z, s, sh -> s...length, sh...stress_hydro
+    *MWRITE,datav,'v_x_axis_%job(1)%_t%ti%_%time_array(ti)%_x_y_z_s_sh',txt
+    %15.10F %15.10F %15.10F %15.10F %15.10F
+
+
+    /NOERASE
+*ENDDO
+/IMAGE,SAVE,'graph',png
+
+
+/EOF

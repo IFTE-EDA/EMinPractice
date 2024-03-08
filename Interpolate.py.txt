@@ -1,0 +1,108 @@
+
+from cProfile import label
+import numpy as np
+
+from scipy.optimize import curve_fit
+import matplotlib.pyplot as plt
+
+#colors
+red120 = (120/255, 0, 0)
+yellow = (191/255, 144/255, 0)
+green = [56/255, 87/255, 35/255]
+
+
+from matplotlib import rc
+plt.rcParams['ps.useafm'] = True
+plt.rcParams['pdf.fonttype'] = 42
+
+parameters = {'axes.labelsize': 35,
+          'axes.titlesize': 35,
+          'ytick.labelsize': 35,
+          'xtick.labelsize': 35}
+plt.rcParams.update(parameters)
+	
+
+# See Paper: model function from Korhonen solution, infinite sum truncated at m=1	
+def model_f_j(tl,K,Vb):
+	jl = ((Vb)*(0.5-4*((np.pi**-2)*np.exp((np.pi**2)*-tl*K) + (((2*np.pi+np.pi)**-2)*np.exp(((2*np.pi+np.pi)**2)*-tl*K)))))**-1
+	return  jl
+	
+
+# j*L-data
+jl_orig = np.array([110000,
+130000,
+150000,
+200000,
+110000,
+120000,
+140000,
+160000,
+108000,
+120000,
+150000,
+180000
+])
+
+# MTTF/L^2-data
+tl_orig = np.array([2.08513E+15,
+1.06687E+15,
+7.40004E+14,
+4.00003E+14,
+2.10251E+15,
+1.40558E+15,
+8.91857E+14,
+6.51578E+14,
+2.53117E+15,
+1.42525E+15,
+7.5216E+14,
+5.11222E+14
+])
+
+# Generate 10 data sets with random noise
+N=10
+tl=tl_orig * np.random.normal(1, 0.1, len(tl_orig))
+jl=jl_orig
+
+while N>0:	
+	jl=np.concatenate((jl, jl_orig))
+	tl=np.concatenate((tl, tl_orig * np.random.normal(1, 0.1, len(tl_orig))))
+	
+	N=N-1
+
+
+l = np.array([80, 90, 100, 150, 60, 70, 80, 90, 50, 60, 70, 80])
+
+
+
+
+
+#initial guess values
+p0 = [1e-16, 2e-6]
+popt=[0,0]
+#fitting function
+popt, pcov = curve_fit(model_f_j, tl, jl, p0)
+
+# Print obtained material parameters
+print(popt[0], 1/popt[1])
+
+
+fig, ax1 = plt.subplots() 
+
+# Plot results
+
+ax1.plot(jl, tl, "o", color=red120, markersize=4, label="Data points")
+
+y_model = np.sort(tl_orig)
+x_model = model_f_j(y_model, popt[0], popt[1]) 
+ax1.plot(x_model, y_model, color=green, linewidth=4, label="Fitted curve")
+ax1.set_ylabel('MTTF/L\N{SUPERSCRIPT TWO} [s/m\N{SUPERSCRIPT TWO}]') 
+ax1.set_xlabel('jL [A/m]')
+ax1.ticklabel_format(style='sci', scilimits=(0,0))
+ax1.legend(loc='upper right', prop={'size': 35})
+fig.set_figheight(9)
+fig.set_figwidth(10)                   
+plt.savefig("FEMInterpolate.png", bbox_inches='tight')
+plt.show()
+print(x_model)
+
+
