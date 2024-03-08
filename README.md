@@ -3,7 +3,7 @@ Simulation scripts and data
 
 We provide the following scripts:
 
-- FEM_APDL: Used for MTTF data generation and verification of our RC SPICE results. Can be run in Ansys.
+- FEM_APDL: Used for MTTF data generation and verification of our RC SPICE results. Can be run in Ansys. (Based on: https://github.com/IFTE-EDA/MigrationFEM)
 - RC_SPICE: Our Spice script for the example circuit.
 - Interpolate.py: Adds noise and finds matarial parameters from MTTF data.
 

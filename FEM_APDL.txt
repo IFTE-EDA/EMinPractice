@@ -1,3 +1,5 @@
+! Based on: https://github.com/IFTE-EDA/MigrationFEM
+
 
 t_end=100e3
 t_ste=500
